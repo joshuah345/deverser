@@ -28,16 +28,16 @@ if [ -f "img4_to_shsh.py" ]; then
     if [ -d "env/" ]; then
         echo "[i] Found python virtual environment!"
         source env/bin/activate
-        if ! pip3 show pyasn1 >/dev/null; then
+        if ! pip3 show pyasn1 2>&1 >/dev/null; then
             echo "[!] Missing dependencies, installing..."
-            pip3 install -U pyasn1
+            pip3 install -U pyasn1 2>/dev/null
         fi
     else
         echo "[!] Missing python virtual environment, setting up..."
         python3 -m venv env/ && source env/bin/activate
         
         echo "[!] Installing dependencies..."
-        pip3 install -U pyasn1
+        pip3 install -U pyasn1 2>/dev/null
     fi
 else
     echo "[#] This script requires a script to convert the dumped blob, do you want to install it (script will close without it)"
