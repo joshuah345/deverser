@@ -9,18 +9,6 @@ cat << "intro"
 [!] This script will allow you to use dumped blobs with futurerestore at a later date (depending on SEP compatibility)...
 intro
 
-unamestr=$(uname)
-if [ "$unamestr" = "Darwin" ]; then
-    OS=macos
-    echo "[!] macOS detected!"
-elif [ "$unamestr" = "Linux" ]; then
-    OS=ubuntu
-    echo "[!] Linux detected!"
-else
-    echo "Not running on macOS or Linux. exiting..."
-    exit 1
-fi
-
 if which curl >/dev/null; then
     echo "[i] curl is installed!"
 else
@@ -28,29 +16,31 @@ else
     exit 2
 fi
 
-if which img4tool >/dev/null; then
-    echo "[!] Found img4tool at $(which img4tool)!"
+if which python3 >/dev/null; then
+    echo "[i] python3 is installed!"
 else
-    echo "[#] img4tool is not installed, do you want Déverser to download and install img4tool? (If no then the script will close, img4tool is needed)"
+    echo "[!] Please install python3 before running this script"
+    exit 2
+fi
+
+if [ -f "img4_to_shsh.py" ]; then
+    echo "[!] Found conversion script!"
+else
+    echo "[#] This script requires a script to convert the dumped blob, do you want to install it (script will close without it)"
     echo "[*] Please enter 'Yes' or 'No':"
     read -r consent
     case $consent in 
         [Yy]* )
-            echo "[!] Downloading latest img4tool from tihmstar's repo..."
-            latestBuild=$(curl --silent "https://github.com/tihmstar/img4tool/releases" | grep -Eo "/tihmstar/img4tool/releases/download/\d+" | head -1)
-            curl -L "https://github.com/$latestBuild/buildroot_$OS-latest.zip" -o img4tool-latest.zip
+            echo "[!] Downloading script..."
+            curl -L https://gist.githubusercontent.com/beerpiss/e938cd84ebd9695258feca03444e81e7/raw/dacaa98a8f8a94e0f4a509d1e6b6495053046d71/convert.py -o img4_to_shsh.py
             
-            IMG4TOOL_TEMP=$(mktemp -d 'img4tool.XXXXXXX')
-            unzip -q img4tool-latest.zip -d "$IMG4TOOL_TEMP"
-            echo "[*] Terminal may ask for permission to move the files into '/usr/local/bin' and '/usr/local/include', please enter your password if it does..."
-            sudo install -m755 "$IMG4TOOL_TEMP/buildroot_$OS-latest/usr/local/bin/img4tool" /usr/local/bin/img4tool
-            sudo cp -R "$IMG4TOOL_TEMP/buildroot_$OS-latest/usr/local/include/img4tool" /usr/local/include
-
-            rm -rf img4tool-latest.zip "$IMG4TOOL_TEMP"
+            echo "[!] Setting up virtual environment..."
+            python3 -m venv env/ && source env/bin/activate
+            
+            echo "[!] Installing dependencies..."
+            pip3 install -U pyasn1
             ;;
         * )
-            echo "[#] img4tool is needed for this script to work..."
-            echo "[#] If you want to manually install it, you can download img4tool from 'https://github.com/tihmstar/img4tool/releases/latest' and manually move the files to the correct locations..."
             exit
             ;;
     esac
@@ -70,7 +60,7 @@ else
     exit
 fi
 echo "[!] Copied dump.raw to this machine, about to convert to SHSH..."
-img4tool --convert -s dumped.shsh dump.raw >/dev/null 2>&1
+python3 img4_to_shsh.py dump.raw dumped.shsh >/dev/null 2>&1
 if img4tool -s dumped.shsh | grep -q 'failed'; then
     echo "[#] Error: Failed to create SHSH from 'dump.raw'..."
     exit
