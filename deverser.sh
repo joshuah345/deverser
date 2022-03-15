@@ -24,7 +24,21 @@ else
 fi
 
 if [ -f "img4_to_shsh.py" ]; then
-    echo "[!] Found conversion script!"
+    echo "[i] Found conversion script!"
+    if [ -d "env/" ]; then
+        echo "[i] Found python virtual environment!"
+        source env/bin/activate
+        if ! pip3 show pyasn1 >/dev/null; then
+            echo "[!] Missing dependencies, installing..."
+            pip3 install -U pyasn1
+        fi
+    else
+        echo "[!] Missing python virtual environment, setting up..."
+        python3 -m venv env/ && source env/bin/activate
+        
+        echo "[!] Installing dependencies..."
+        pip3 install -U pyasn1
+    fi
 else
     echo "[#] This script requires a script to convert the dumped blob, do you want to install it (script will close without it)"
     echo "[*] Please enter 'Yes' or 'No':"
@@ -53,9 +67,7 @@ echo "[!] Please enter the device's root password (Default is 'alpine')..."
 ssh root@$ip 'cat /dev/disk1 | dd of=dump.raw bs=256 count=$((0x4000))' >/dev/null 2>&1
 echo "[!] Dumped onboard SHSH to device, about to copy to this machine..."
 echo "[!] Please enter the device's root password again (Default is 'alpine')..."
-if scp root@$ip:dump.raw dump.raw >/dev/null 2>&1; then
-   :
-else
+if ! scp root@$ip:dump.raw dump.raw >/dev/null 2>&1; then
     echo "[#] Error: Failed to to copy 'dump.raw' from device to local machine..."
     exit
 fi
