@@ -67,7 +67,7 @@ get_firmware_ver() {
         firmware_version="$(sw_vers -productVersion)"
     else
         pre_echo W "Enter the password for the mobile user if prompted."
-        firmware_version="$(ssh mobile@$ip -p $port_number 'sw_vers -productVersion')"
+        firmware_version="$(ssh mobile@$ip -p $port_number 'sw_vers -productVersion' | tr -d '\r')"
     fi
 }
 
@@ -229,7 +229,7 @@ dump_remote() {
 
     pre_echo W "Please enter the device's $ssh_user user password."
 
-    if ssh -t $ssh_user@$ip -p $port_number 'sudo cat /dev/disk1 | dd of=deverser_dump.raw bs=256 count=$((0x4000))'; then
+    if ssh -t $ssh_user@$ip -p $port_number 'sudo dd if=/dev/rdisk2 bs=4096 count=2048 | dd of=deverser_dump.raw bs=4096'; then
 
         pre_echo W "Dumped onboard SHSH to device, about to copy to this machine..."
         pre_echo W "Please enter the device's $ssh_user password again."
@@ -251,13 +251,13 @@ dump_remote() {
 dump_local() {
     if [ "$1" = "rootless" ] || [ "$1" = "roothide" ]; then
         pre_echo W "The password for the 'mobile' user is required to elevate permissions. Please enter it when prompted."
-        sudo cat /dev/disk1 | dd of=deverser_dump.raw bs=256 count=$((0x4000)) >/dev/null
+        sudo dd if=/dev/rdisk2 bs=4096 count=2048 | dd of=deverser_dump.raw bs=4096 >/dev/null
         if [ -f deverser_dump.raw ] && ! [ -O deverser_dump.raw ]; then
             sudo chown mobile deverser_dump.raw
             chmod 755 deverser_dump.raw
         fi
     else
-        sudo cat /dev/disk1 | dd of=deverser_dump.raw bs=256 count=$((0x4000)) >/dev/null
+        sudo dd if=/dev/rdisk2 bs=4096 count=2048 | dd of=deverser_dump.raw bs=4096 >/dev/null
     fi
 
     if [ -f "./deverser_dump.raw" ]; then
@@ -272,7 +272,7 @@ dump_local() {
 }
 
 finisher() {
-    ecid=$(img4tool -s dumped.shsh | grep "ECID" | cut -c13-)
+    ecid=$(img4tool -s dumped.shsh | sed -n 's/.*\[ECID\]: ECID: \([0-9]*\).*/\1/p')
     mv dumped.shsh "$firmware_version-$ecid".dumped.shsh # Allows multiple devices to be dumped as each dump/converted SHSH will have a filename that links the SHSH to the device
     generator="$(cat "$firmware_version-$ecid".dumped.shsh | grep "<string>0x" | cut -c10-27)"
 
